@@ -77,13 +77,13 @@ func (p *ProxyServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 	var requested string
 	body, _ := io.ReadAll(r.Body)
 	if endpoint, ok := RouteCache[r.URL.Path]; ok {
-		err := func() error {
+		resp, err := func() (*http.Response, error) {
 			req, err := http.NewRequest(r.Method, endpoint+r.URL.String(), io.NopCloser(bytes.NewBuffer(body)))
 			if err != nil {
 				log.Infof("failed to create proxy request: %v\n", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintf(w, "failed to create proxy request")
-				return err
+				return nil, err
 			}
 			copyHeaders(r.Header, req.Header)
 			client := &http.Client{}
@@ -96,25 +96,25 @@ func (p *ProxyServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 					log.Errorf("failed to read proxy response body: %v\n", err)
 					w.WriteHeader(http.StatusInternalServerError)
 					fmt.Fprintf(w, "failed to read proxy response body")
-					return err
+					return resp, err
 				}
 				w.WriteHeader(resp.StatusCode)
 				w.Write(body)
-				return nil
+				return resp, nil
 			}
 			if resp == nil {
 				log.Errorf("proxy request to cluster %s failed, url_path: %s, err: %+v\n", endpoint, r.URL.Path, err)
 			} else {
 				log.Errorf("proxy request to cluster %s failed, url_path: %s, resp_code: %d, err: %+v\n", endpoint, r.URL.Path, resp.StatusCode, err)
 			}
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "proxy requests failed")
-			return err
+			return resp, err
 		}()
-		if err != nil {
-			requested = endpoint
-		} else {
-			return
+		if resp != nil {
+			if err == nil && resp.StatusCode == http.StatusOK {
+				return
+			} else {
+				requested = endpoint
+			}
 		}
 	}
 	for _, region := range p.regions {
