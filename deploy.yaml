@@ -1,0 +1,59 @@
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: gateway-proxy
+#   namespace: vanus
+# spec:
+#   selector:
+#     name: gateway-proxy
+#   type: ClusterIP
+#   ports:
+#     - port: 8081
+#       targetPort: 8081
+#       name: proxy
+# ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-proxy
+  namespace: vanus
+data:
+  config.yml: |-
+    port: 8081
+    region: aws-us-west-2
+    mongodb:
+      address: "cluster0.ywakulp.mongodb.net"
+      database: "vanus-cloud-test"
+      username: "vanus-cloud-test"
+      password: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: gateway-proxy
+  name: gateway-proxy
+  namespace: vanus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-proxy
+  template:
+    metadata:
+      labels:
+        app: gateway-proxy
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: container1
+        # Replace this with the built image name
+        image: public.ecr.aws/vanus/gateway-proxy:latest
+        imagePullPolicy: Always
+        volumeMounts:
+          - name: config
+            mountPath: /vanus/config
+      volumes:
+        - name: config
+          configMap:
+            name: gateway-proxy
