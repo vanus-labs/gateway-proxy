@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vanus-labs/source-proxy/db"
-	"github.com/vanus-labs/source-proxy/models"
+	"github.com/vanus-labs/gateway-proxy/db"
+	"github.com/vanus-labs/gateway-proxy/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

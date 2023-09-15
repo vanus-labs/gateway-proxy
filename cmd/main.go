@@ -8,13 +8,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 	log "k8s.io/klog/v2"
 
-	"github.com/vanus-labs/source-proxy/db"
-	"github.com/vanus-labs/source-proxy/models"
-	"github.com/vanus-labs/source-proxy/region"
+	"github.com/vanus-labs/gateway-proxy/db"
+	"github.com/vanus-labs/gateway-proxy/models"
+	"github.com/vanus-labs/gateway-proxy/monitor"
+	"github.com/vanus-labs/gateway-proxy/region"
 )
 
 // forward http://vanus-gateway.vanus:8081/namespaces/default/eventbus/p0qcb5te/events to vanus-core gateway
@@ -24,9 +26,10 @@ var (
 )
 
 type Config struct {
-	Port   int           `yaml:"port"`
-	Region models.Region `yaml:"region"`
-	DB     db.Config     `yaml:"mongodb"`
+	Port    int            `yaml:"port"`
+	DB      db.Config      `yaml:"mongodb"`
+	Monitor monitor.Config `yaml:"monitor"`
+	Region  models.Region  `yaml:"region"`
 }
 
 func ParseConfig(c *Config) error {
@@ -56,6 +59,8 @@ func main() {
 	defer func() {
 		_ = cli.Disconnect(ctx)
 	}()
+
+	monitor.Init(ctx, c.Monitor)
 
 	err = region.Init(ctx, c.Region)
 	if err != nil {
@@ -102,6 +107,8 @@ func (p *ProxyServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 				w.Write(body)
 				return resp, nil
 			}
+			message := fmt.Sprintf("【Sends Failure】Sending event to %s of %s cluster failed", getEventbus(r.URL.Path), isDefaultCluster(endpoint))
+			monitor.SendAlarm(context.Background(), message)
 			if resp == nil {
 				log.Errorf("proxy request to cluster %s failed, url_path: %s, err: %+v\n", endpoint, r.URL.Path, err)
 			} else {
@@ -145,6 +152,8 @@ func (p *ProxyServer) handleRequest(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+		message := fmt.Sprintf("【Sends Failure】Sending event to %s of %s cluster failed", getEventbus(r.URL.Path), isDefaultCluster(endpoint))
+		monitor.SendAlarm(context.Background(), message)
 		if resp == nil {
 			log.Errorf("proxy request to cluster %s failed, url_path: %s, err: %+v\n", endpoint, r.URL.Path, err)
 		} else {
@@ -161,4 +170,23 @@ func copyHeaders(src http.Header, dst http.Header) {
 			dst.Add(key, value)
 		}
 	}
+}
+
+func isDefaultCluster(endpoint string) string {
+	if strings.Contains(endpoint, "default") {
+		return "default"
+	}
+	if strings.Contains(endpoint, "standby") {
+		return "standby"
+	}
+	return endpoint
+}
+
+func getEventbus(path string) string {
+	subPaths := strings.Split(path, "/")
+	subPathNum := len(subPaths)
+	if subPathNum >= 2 {
+		return subPaths[subPathNum-2]
+	}
+	return path
 }
