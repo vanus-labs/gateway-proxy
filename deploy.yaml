@@ -26,6 +26,9 @@ data:
       database: "vanus-cloud-test"
       username: "vanus-cloud-test"
       password: ""
+    monitor:
+      enable: false
+      # webhook_url: https://9vew3ud8zabfjpgh.connector.vanustest.com/api/v1/source/http/6503ca00776573a0df3ba173
 ---
 apiVersion: apps/v1
 kind: Deployment
