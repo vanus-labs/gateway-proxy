@@ -34,6 +34,9 @@ func Init(ctx context.Context, c Config) {
 }
 
 func SendAlarm(ctx context.Context, message string) error {
+	if !cfg.Enable {
+		return nil
+	}
 	req := &Alarm{
 		Message: message,
 	}
