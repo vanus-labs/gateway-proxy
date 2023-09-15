@@ -29,7 +29,7 @@ func Init(ctx context.Context, c Config) {
 	once.Do(func() {
 		cfg = c
 		client = resty.New()
-		log.Infof("the monitoring alarm function has been enabled, webhook url: %s\n", c.WebhookUrl)
+		log.Infof("the monitoring alarm function has been %s, webhook url: %s\n", monitorSwitchStatus(c.Enable), c.WebhookUrl)
 	})
 }
 
@@ -57,4 +57,11 @@ func handleHTTPResponse(ctx context.Context, res *resty.Response, err error) err
 		return errors.New(string(res.Body()))
 	}
 	return nil
+}
+
+func monitorSwitchStatus(enable bool) string {
+	if enable {
+		return "enabled"
+	}
+	return "disabled"
 }
