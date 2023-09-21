@@ -25,7 +25,8 @@ func Init(ctx context.Context, name models.Region) error {
 		regionColl = db.NewCollection(regionCollName)
 	}
 	query := bson.M{
-		"name": name,
+		"name":   name,
+		"enable": true,
 	}
 	opt := &options.FindOptions{
 		Sort: bson.M{"is_default": -1},
